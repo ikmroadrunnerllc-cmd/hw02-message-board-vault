@@ -1,0 +1,26 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "fb-auth-lab-50718",
+          "appId": "1:279910144229:android:553f1b776751da3e6e9c0c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "fb-auth-lab-50718",
+          "configurations": {
+            "android": "1:279910144229:android:553f1b776751da3e6e9c0c",
+            "web": "1:279910144229:web:b1cbc4b7702ad5c36e9c0c",
+            "windows": "1:279910144229:web:96278f87e3c023576e9c0c"
+          }
+        }
+      }
+    }
+  }
+}

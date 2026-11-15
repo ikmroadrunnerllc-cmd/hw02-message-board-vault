@@ -1,0 +1,163 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{uid}
+    // Document ID: Firebase Auth UID of the user
+    // Fields:
+    //   - uid: string (required, 1-128 chars, immutable) - Must match document ID and request.auth.uid
+    //   - firstName: string (required, 0-100 chars) - User's first name
+    //   - lastName: string (required, 0-100 chars) - User's last name
+    //   - role: string (required, 1-50 chars) - User's role (e.g. 'Member')
+    //   - registrationDateTime: timestamp (required, immutable) - Timestamp of registration (must be request.time on create)
+    //
+    // Subcollections under /users/{uid} (e.g. /users/{uid}/prefs/{doc}):
+    //   - Accessible only by the owning user (request.auth.uid == uid)
+    //
+    // Collection: /messages/{msgId}
+    // Document ID: Auto-generated or custom message ID
+    // Fields:
+    //   - authorUid: string (required, 1-128 chars, immutable) - Author's Firebase Auth UID
+    //   - authorName: string (required, 0-100 chars) - Display name of the author
+    //   - text: string (required, non-empty, 1-5000 chars) - The message text content
+    //   - createdAt: timestamp (required, immutable) - Creation timestamp (must be request.time on create)
+    //   - editedAt: timestamp (optional on create, required on edit) - Edit timestamp (must be request.time on update)
+    //   - schemaVersion: int (optional) - Schema version indicator (e.g. 2)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user matches the specified userId
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check that the given map data contains all required fields
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    // Check that the given map data contains only allowed fields
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // Validate structure and field types for user documents
+    function isValidUserData(data) {
+      return hasOnlyAllowedFields(data, ['uid', 'firstName', 'lastName', 'role', 'registrationDateTime']) &&
+             hasRequiredFields(data, ['uid', 'firstName', 'lastName', 'role', 'registrationDateTime']) &&
+             data.uid is string &&
+             data.uid.size() > 0 &&
+             data.uid.size() <= 128 &&
+             data.firstName is string &&
+             data.firstName.size() <= 100 &&
+             data.lastName is string &&
+             data.lastName.size() <= 100 &&
+             data.role is string &&
+             data.role.size() > 0 &&
+             data.role.size() <= 50 &&
+             data.registrationDateTime is timestamp;
+    }
+
+    // Validate structure and field types for message documents
+    function isValidMessageData(data) {
+      return hasOnlyAllowedFields(data, ['authorUid', 'authorName', 'text', 'createdAt', 'editedAt', 'schemaVersion']) &&
+             data.authorUid is string &&
+             data.authorUid.size() > 0 &&
+             data.authorUid.size() <= 128 &&
+             data.authorName is string &&
+             data.authorName.size() <= 100 &&
+             data.text is string &&
+             data.text.size() > 0 &&
+             data.text.size() <= 5000 &&
+             data.createdAt is timestamp &&
+             (!('editedAt' in data) || data.editedAt is timestamp) &&
+             (!('schemaVersion' in data) || data.schemaVersion is int);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // Default deny for unmatched root collections/documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Private user records
+    match /users/{uid} {
+      // Only the authenticated owner can read their own user record
+      allow read: if isOwner(uid);
+
+      // Creation requires authenticated owner, matching uid, valid field types, and server timestamp
+      allow create: if isOwner(uid) &&
+                       isValidUserData(request.resource.data) &&
+                       request.resource.data.uid == uid &&
+                       request.resource.data.registrationDateTime == request.time;
+
+      // Updating requires authenticated owner, schema validation, and immutable uid & registrationDateTime
+      allow update: if isOwner(uid) &&
+                       isValidUserData(request.resource.data) &&
+                       request.resource.data.uid == resource.data.uid &&
+                       request.resource.data.registrationDateTime == resource.data.registrationDateTime;
+
+      // Deletion allowed only by authenticated owner
+      allow delete: if isOwner(uid);
+
+      // Subcollections such as /users/{uid}/prefs/{doc} allow read and write only by the owner
+      match /prefs/{doc} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Any additional subcollections under /users/{uid} are also restricted to owner only
+      match /{subcollection}/{doc} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // Public board messages
+    match /messages/{msgId} {
+      // Any authenticated user can read messages
+      allow read: if isAuthenticated();
+
+      // Authenticated users can create messages with authorUid == auth.uid, valid text, createdAt == request.time
+      allow create: if isAuthenticated() &&
+                       isValidMessageData(request.resource.data) &&
+                       hasRequiredFields(request.resource.data, ['authorUid', 'authorName', 'text', 'createdAt']) &&
+                       !('editedAt' in request.resource.data) &&
+                       request.resource.data.authorUid == request.auth.uid &&
+                       request.resource.data.createdAt == request.time;
+
+      // Only the authenticated author can update their own message
+      // Cannot change authorUid or createdAt; only text, editedAt (and optional schemaVersion) may change
+      allow update: if isAuthenticated() &&
+                       resource.data.authorUid == request.auth.uid &&
+                       isValidMessageData(request.resource.data) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt', 'schemaVersion']) &&
+                       request.resource.data.authorUid == resource.data.authorUid &&
+                       request.resource.data.createdAt == resource.data.createdAt &&
+                       request.resource.data.editedAt == request.time;
+
+      // Only the authenticated author can delete their own message
+      allow delete: if isAuthenticated() &&
+                       resource.data.authorUid == request.auth.uid;
+    }
+  }
+}

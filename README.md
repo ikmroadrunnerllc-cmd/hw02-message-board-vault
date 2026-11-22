@@ -1,5 +1,6 @@
 # The Message Board Vault Hunt (CSC 4360 - Homework 02)
 
+**Student Developer:** Mario Leonel Gutierrez Espinal  
 **Course:** CSC 4360 – Mobile App Development  
 **Assignment:** Homework 02 – The Message Board Vault Hunt  
 **Focus:** Firebase Authentication · Cloud Firestore CRUD & Live Streams · Firestore Security Rules · Release Engineering  

@@ -52,11 +52,11 @@ def create_evidence_doc():
     tbl_meta = doc.add_table(rows=5, cols=2)
     tbl_meta.alignment = WD_TABLE_ALIGNMENT.CENTER
     meta_info = [
-        ("Student Name:", "Student Developer (Replace with Your Name)"),
+        ("Student Name:", "Mario Leonel Gutierrez Espinal"),
         ("Course & Term:", "CSC 4360 – Mobile App Development (Fall 2026)"),
         ("Submission Due Date:", "November 21, 2026 @ 11:59 PM (UTC-5)"),
         ("Target Platform / Device:", "Android 15 (API 35) / Google Pixel Emulator / Release APK"),
-        ("Release APK Artifact:", "release_apk/app-release.apk (50.2 MB)")
+        ("Release APK Artifact:", "release_apk/app-release.apk (52.6 MB)")
     ]
     for i, (k, v) in enumerate(meta_info):
         row = tbl_meta.rows[i]

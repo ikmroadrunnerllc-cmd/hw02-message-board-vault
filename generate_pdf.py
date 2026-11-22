@@ -37,11 +37,11 @@ def generate_pdf():
     pdf.set_font('Helvetica', 'B', 10)
     pdf.set_text_color(0, 0, 0)
     meta = [
-        ("Student Name:", "Student Developer (Replace with Your Name)"),
+        ("Student Name:", "Mario Leonel Gutierrez Espinal"),
         ("Course & Term:", "CSC 4360 - Mobile App Development (Fall 2026)"),
         ("Submission Due:", "November 21, 2026 @ 11:59 PM (UTC-5)"),
         ("Target Platform:", "Android 15 (API 35) / Google Pixel / Release APK"),
-        ("Release Artifact:", "release_apk/app-release.apk (50.2 MB)")
+        ("Release Artifact:", "release_apk/app-release.apk (52.6 MB)")
     ]
     for k, v in meta:
         pdf.set_fill_color(253, 248, 245)
